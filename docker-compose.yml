@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: dev_warehouse_mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: devwarehouse
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - devwarehouse-network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dev_warehouse_app
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/devwarehouse
+      - AUTH_SECRET=${AUTH_SECRET:-dev_warehouse_super_secret_jwt_key_2026_production_safe}
+      - DEV_WAREHOUSE_EMAIL=${DEV_WAREHOUSE_EMAIL:-admin@devwarehouse.local}
+      - DEV_WAREHOUSE_PASSWORD=${DEV_WAREHOUSE_PASSWORD:-DevWarehouse2026!Secret}
+    depends_on:
+      - mongodb
+    networks:
+      - devwarehouse-network
+
+volumes:
+  mongo-data:
+    driver: local
+
+networks:
+  devwarehouse-network:
+    driver: bridge
