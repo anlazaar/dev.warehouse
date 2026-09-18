@@ -24,7 +24,10 @@ export async function proxy(req: NextRequest) {
   // Protected API routes
   if (pathname.startsWith("/api/")) {
     // Public API routes
-    if (pathname.startsWith("/api/auth/login")) {
+    if (
+      pathname.startsWith("/api/auth/login") ||
+      pathname.startsWith("/api/auth/register")
+    ) {
       return NextResponse.next();
     }
     if (!isAuthenticated) {

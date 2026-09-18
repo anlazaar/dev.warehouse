@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { connectToDatabase } from "@/lib/db";
 import { Folder } from "@/lib/models/Folder";
+import { getSession } from "@/lib/auth";
 
 const CreateFolderSchema = z.object({
   name: z.string().min(1, "Folder name is required").max(100),
@@ -12,8 +13,16 @@ const CreateFolderSchema = z.object({
 
 export async function GET() {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     await connectToDatabase();
-    const folders = await Folder.find({}).sort({ position: 1, createdAt: 1 });
+    const folders = await Folder.find({ userId: session.userId }).sort({
+      position: 1,
+      createdAt: 1,
+    });
     return NextResponse.json({ folders });
   } catch (error) {
     console.error("GET /api/folders Error:", error);
@@ -26,6 +35,11 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await req.json();
     const result = CreateFolderSchema.safeParse(body);
 
@@ -40,6 +54,7 @@ export async function POST(req: NextRequest) {
     await connectToDatabase();
 
     const folder = await Folder.create({
+      userId: session.userId,
       name,
       parentId: parentId || null,
       icon: icon || "folder",

@@ -2,9 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/db";
 import { Folder } from "@/lib/models/Folder";
 import { Page } from "@/lib/models/Page";
+import { getSession } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const data = await req.json();
     await connectToDatabase();
 
@@ -12,6 +18,7 @@ export async function POST(req: NextRequest) {
     if (data.type === "excalidraw" || Array.isArray(data.elements)) {
       // Import as single Excalidraw canvas page
       const page = await Page.create({
+        userId: session.userId,
         title: data.name || data.title || "Imported Excalidraw Diagram",
         type: "canvas",
         elements: data.elements || [],
@@ -33,6 +40,7 @@ export async function POST(req: NextRequest) {
       if (Array.isArray(data.folders)) {
         for (const f of data.folders) {
           const newFolder = await Folder.create({
+            userId: session.userId,
             name: f.name || "Imported Folder",
             icon: f.icon || "folder",
             color: f.color || "default",
@@ -48,9 +56,12 @@ export async function POST(req: NextRequest) {
       for (const p of data.pages) {
         const targetFolderId = p.folderId ? folderMap.get(p.folderId.toString()) || null : null;
         await Page.create({
+          userId: session.userId,
           title: p.title || "Imported Page",
           folderId: targetFolderId,
           type: p.type || "canvas",
+          tags: p.tags || [],
+          category: p.category || "General",
           elements: p.elements || [],
           appState: p.appState || {},
           files: p.files || {},

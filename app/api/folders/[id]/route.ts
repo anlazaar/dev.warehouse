@@ -3,6 +3,7 @@ import { z } from "zod";
 import { connectToDatabase } from "@/lib/db";
 import { Folder } from "@/lib/models/Folder";
 import { Page } from "@/lib/models/Page";
+import { getSession } from "@/lib/auth";
 
 const UpdateFolderSchema = z.object({
   name: z.string().min(1).max(100).optional(),
@@ -17,6 +18,11 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { id } = await params;
     const body = await req.json();
     const result = UpdateFolderSchema.safeParse(body);
@@ -29,9 +35,11 @@ export async function PUT(
     }
 
     await connectToDatabase();
-    const folder = await Folder.findByIdAndUpdate(id, result.data, {
-      new: true,
-    });
+    const folder = await Folder.findOneAndUpdate(
+      { _id: id, userId: session.userId },
+      result.data,
+      { new: true }
+    );
 
     if (!folder) {
       return NextResponse.json({ error: "Folder not found" }, { status: 404 });
@@ -52,19 +60,33 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { id } = await params;
     await connectToDatabase();
 
-    const folder = await Folder.findByIdAndDelete(id);
+    const folder = await Folder.findOneAndDelete({
+      _id: id,
+      userId: session.userId,
+    });
     if (!folder) {
       return NextResponse.json({ error: "Folder not found" }, { status: 404 });
     }
 
-    // Move orphan pages to root (folderId = null) to protect data integrity
-    await Page.updateMany({ folderId: id }, { $set: { folderId: null } });
+    // Move orphan pages belonging to user to root
+    await Page.updateMany(
+      { folderId: id, userId: session.userId },
+      { $set: { folderId: null } }
+    );
 
-    // Move orphan child folders to root
-    await Folder.updateMany({ parentId: id }, { $set: { parentId: null } });
+    // Move orphan child folders belonging to user to root
+    await Folder.updateMany(
+      { parentId: id, userId: session.userId },
+      { $set: { parentId: null } }
+    );
 
     return NextResponse.json({
       success: true,

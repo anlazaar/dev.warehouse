@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
+import { NextRequest } from "next/server";
 import { hashPassword, comparePassword, createSessionToken, verifySessionToken } from "../lib/auth";
+import { proxy } from "../proxy";
 
 describe("Authentication Utility Tests", () => {
   it("should securely hash passwords and correctly verify them", async () => {
@@ -36,5 +38,34 @@ describe("Authentication Utility Tests", () => {
     const invalidToken = "invalid.jwt.token.string";
     const result = await verifySessionToken(invalidToken);
     expect(result).toBeNull();
+  });
+});
+
+describe("Proxy Route Guard Tests", () => {
+  it("should allow public access to /api/auth/register without session token", async () => {
+    const req = new NextRequest("http://localhost:3000/api/auth/register", { method: "POST" });
+    const res = await proxy(req);
+    expect(res.status).not.toBe(401);
+  });
+
+  it("should allow public access to /api/auth/login without session token", async () => {
+    const req = new NextRequest("http://localhost:3000/api/auth/login", { method: "POST" });
+    const res = await proxy(req);
+    expect(res.status).not.toBe(401);
+  });
+
+  it("should block unauthenticated access to protected API routes like /api/pages with 401", async () => {
+    const req = new NextRequest("http://localhost:3000/api/pages", { method: "GET" });
+    const res = await proxy(req);
+    expect(res.status).toBe(401);
+    const data = await res.json();
+    expect(data.error).toBe("Unauthorized access");
+  });
+
+  it("should redirect unauthenticated request to /workspace to /login", async () => {
+    const req = new NextRequest("http://localhost:3000/workspace", { method: "GET" });
+    const res = await proxy(req);
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toContain("/login");
   });
 });

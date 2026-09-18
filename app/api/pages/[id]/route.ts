@@ -2,16 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { connectToDatabase } from "@/lib/db";
 import { Page } from "@/lib/models/Page";
+import { getSession } from "@/lib/auth";
 
 const UpdatePageSchema = z.object({
   title: z.string().min(1).max(120).optional(),
   folderId: z.string().nullable().optional(),
+  projectId: z.string().nullable().optional(),
   type: z.enum(["canvas", "doc"]).optional(),
   elements: z.array(z.record(z.string(), z.unknown())).optional(),
   appState: z.record(z.string(), z.unknown()).optional(),
   files: z.record(z.string(), z.unknown()).optional(),
   textContent: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  category: z.string().optional(),
   isPinned: z.boolean().optional(),
+  isFavorite: z.boolean().optional(),
+  isTrash: z.boolean().optional(),
   position: z.number().optional(),
 });
 
@@ -65,11 +71,15 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { id } = await params;
     await connectToDatabase();
 
-    // Use .lean() to ensure plain JS object serialization without Mongoose getters
-    const page = await Page.findById(id).lean();
+    const page = await Page.findOne({ _id: id, userId: session.userId }).lean();
     if (!page) {
       return NextResponse.json({ error: "Page not found" }, { status: 404 });
     }
@@ -96,6 +106,11 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { id } = await params;
     const body = await req.json();
     const result = UpdatePageSchema.safeParse(body);
@@ -116,14 +131,42 @@ export async function PUT(
       result.data.appState = sanitizeAppState(result.data.appState);
     }
 
-    const page = await Page.findByIdAndUpdate(id, result.data, {
-      new: true,
-      runValidators: true,
-    }).lean();
-
-    if (!page) {
+    const existingPage = await Page.findOne({ _id: id, userId: session.userId });
+    if (!existingPage) {
       return NextResponse.json({ error: "Page not found" }, { status: 404 });
     }
+
+    // Check if we should push a version snapshot for doc notes
+    if (
+      existingPage.type === "doc" &&
+      (result.data.textContent !== undefined || result.data.title !== undefined)
+    ) {
+      const newTitle = result.data.title ?? existingPage.title;
+      const newContent = result.data.textContent ?? existingPage.textContent ?? "";
+      if (
+        existingPage.textContent !== newContent ||
+        existingPage.title !== newTitle
+      ) {
+        const currentVersions = existingPage.versions || [];
+        const newVersion = {
+          title: existingPage.title,
+          textContent: existingPage.textContent || "",
+          createdAt: new Date(),
+        };
+        // Keep max 20 snapshots
+        const updatedVersions = [newVersion, ...currentVersions].slice(0, 20);
+        (result.data as any).versions = updatedVersions;
+      }
+    }
+
+    const page = await Page.findOneAndUpdate(
+      { _id: id, userId: session.userId },
+      result.data,
+      {
+        new: true,
+        runValidators: true,
+      }
+    ).lean();
 
     return NextResponse.json({ page });
   } catch (error) {
@@ -136,22 +179,45 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
-    await connectToDatabase();
-
-    const page = await Page.findByIdAndDelete(id);
-    if (!page) {
-      return NextResponse.json({ error: "Page not found" }, { status: 404 });
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    return NextResponse.json({
-      success: true,
-      message: "Page deleted successfully",
-    });
+    const { id } = await params;
+    const { searchParams } = new URL(req.url);
+    const permanent = searchParams.get("permanent") === "true";
+
+    await connectToDatabase();
+
+    if (permanent) {
+      const page = await Page.findOneAndDelete({ _id: id, userId: session.userId });
+      if (!page) {
+        return NextResponse.json({ error: "Page not found" }, { status: 404 });
+      }
+      return NextResponse.json({
+        success: true,
+        message: "Page permanently deleted",
+      });
+    } else {
+      const page = await Page.findOneAndUpdate(
+        { _id: id, userId: session.userId },
+        { isTrash: true },
+        { new: true }
+      );
+      if (!page) {
+        return NextResponse.json({ error: "Page not found" }, { status: 404 });
+      }
+      return NextResponse.json({
+        success: true,
+        message: "Page moved to trash",
+        page,
+      });
+    }
   } catch (error) {
     console.error("DELETE /api/pages/[id] Error:", error);
     return NextResponse.json(
