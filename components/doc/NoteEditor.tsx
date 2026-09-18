@@ -1,6 +1,10 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeHighlight from "rehype-highlight";
+import "highlight.js/styles/github-dark.css";
 import {
   Check,
   Loader2,
@@ -11,13 +15,27 @@ import {
   Italic,
   Code,
   Heading1,
+  Heading2,
+  Heading3,
   List,
+  ListOrdered,
   CheckSquare,
   Eye,
   Edit3,
   Columns,
+  Quote,
+  Table as TableIcon,
+  Link as LinkIcon,
+  Image as ImageIcon,
+  Strikethrough,
+  Minus,
+  Copy,
+  History,
+  Workflow,
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
+import { MermaidRenderer } from "./MermaidRenderer";
+import { VersionHistoryDrawer } from "./VersionHistoryDrawer";
 
 interface NoteEditorProps {
   pageId: string;
@@ -37,6 +55,7 @@ export function NoteEditor({ pageId, initialData, onTitleChange }: NoteEditorPro
   const [textContent, setTextContent] = useState(initialData.textContent || "");
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const [viewMode, setViewMode] = useState<ViewMode>("split");
+  const [isVersionDrawerOpen, setIsVersionDrawerOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -91,14 +110,14 @@ export function NoteEditor({ pageId, initialData, onTitleChange }: NoteEditorPro
     }, 1000);
   };
 
-  const insertMarkdown = (prefix: string, suffix: string = "") => {
+  const insertMarkdown = (prefix: string, suffix: string = "", placeholderText: string = "text") => {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const selected = textContent.substring(start, end);
-    const replacement = `${prefix}${selected || "text"}${suffix}`;
+    const replacement = `${prefix}${selected || placeholderText}${suffix}`;
 
     const newContent =
       textContent.substring(0, start) + replacement + textContent.substring(end);
@@ -109,7 +128,7 @@ export function NoteEditor({ pageId, initialData, onTitleChange }: NoteEditorPro
       textarea.focus();
       textarea.setSelectionRange(
         start + prefix.length,
-        end + prefix.length + (selected ? 0 : 4)
+        end + prefix.length + (selected ? 0 : placeholderText.length)
       );
     }, 50);
   };
@@ -117,95 +136,29 @@ export function NoteEditor({ pageId, initialData, onTitleChange }: NoteEditorPro
   const wordCount = textContent.trim() ? textContent.trim().split(/\s+/).length : 0;
   const charCount = textContent.length;
 
-  // Simple clean markdown preview renderer helper
-  const renderSimpleMarkdown = (raw: string) => {
-    if (!raw.trim()) {
-      return (
-        <p className="text-slate-400 italic text-sm">
-          No content yet. Type in editor to see live formatted output...
-        </p>
-      );
-    }
-
-    const lines = raw.split("\n");
-    return lines.map((line, idx) => {
-      if (line.startsWith("# ")) {
-        return (
-          <h1 key={idx} className="text-2xl font-black text-foreground mb-3 mt-4">
-            {line.replace("# ", "")}
-          </h1>
-        );
-      }
-      if (line.startsWith("## ")) {
-        return (
-          <h2 key={idx} className="text-xl font-bold text-foreground mb-2 mt-3">
-            {line.replace("## ", "")}
-          </h2>
-        );
-      }
-      if (line.startsWith("### ")) {
-        return (
-          <h3 key={idx} className="text-lg font-bold text-foreground mb-2 mt-2">
-            {line.replace("### ", "")}
-          </h3>
-        );
-      }
-      if (line.startsWith("- [ ] ") || line.startsWith("- [x] ")) {
-        const checked = line.startsWith("- [x] ");
-        return (
-          <div key={idx} className="flex items-center gap-2 text-sm text-foreground my-1">
-            <input type="checkbox" checked={checked} readOnly className="rounded accent-indigo-500" />
-            <span className={checked ? "line-through text-slate-400" : ""}>
-              {line.substring(6)}
-            </span>
-          </div>
-        );
-      }
-      if (line.startsWith("- ")) {
-        return (
-          <li key={idx} className="ml-4 text-sm text-foreground list-disc my-0.5">
-            {line.replace("- ", "")}
-          </li>
-        );
-      }
-      if (line.startsWith("```")) {
-        return (
-          <div key={idx} className="my-2 p-3 rounded-xl bg-slate-900 text-indigo-300 font-mono text-xs overflow-x-auto border border-slate-800">
-            {line}
-          </div>
-        );
-      }
-      return (
-        <p key={idx} className="text-sm text-foreground leading-relaxed my-1 min-h-[1rem]">
-          {line}
-        </p>
-      );
-    });
-  };
-
   return (
     <div className="w-full h-full flex flex-col bg-background text-foreground overflow-hidden">
       {/* Header Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 py-3 border-b border-border bg-card/60 backdrop-blur-md shrink-0">
-        <div className="flex items-center gap-3 flex-1 min-w-[200px]">
-          <div className="p-2 rounded-xl bg-blue-500/10 text-blue-500 shrink-0">
-            <FileText className="w-5 h-5" />
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 py-2.5 border-b border-border bg-card/60 backdrop-blur-md shrink-0 select-none">
+        <div className="flex items-center gap-2.5 flex-1 min-w-[200px]">
+          <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-500 shrink-0">
+            <FileText className="w-4 h-4" />
           </div>
           <input
             type="text"
             value={title}
             onChange={(e) => handleTitleChange(e.target.value)}
-            className="text-base font-bold text-foreground bg-transparent border-b border-transparent hover:border-border focus:border-indigo-500 focus:outline-none px-1 py-0.5 w-full max-w-md truncate transition-colors"
+            className="text-sm font-bold text-foreground bg-transparent border-b border-transparent hover:border-border focus:border-indigo-500 focus:outline-none px-1 py-0.5 w-full max-w-md truncate transition-colors"
             placeholder="Note Title"
           />
         </div>
 
         {/* View Mode Split Controls */}
-        <div className="flex items-center gap-1 bg-background/90 p-1 rounded-xl border border-border text-xs font-bold text-slate-400">
+        <div className="flex items-center gap-1 bg-muted p-1 rounded-lg border border-border text-xs font-bold text-muted-foreground">
           <button
             onClick={() => setViewMode("edit")}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-              viewMode === "edit" ? "bg-card text-indigo-400 shadow-xs border border-border" : "hover:text-foreground"
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+              viewMode === "edit" ? "bg-card text-indigo-500 shadow-xs border border-border" : "hover:text-foreground"
             }`}
           >
             <Edit3 className="w-3.5 h-3.5" />
@@ -214,8 +167,8 @@ export function NoteEditor({ pageId, initialData, onTitleChange }: NoteEditorPro
 
           <button
             onClick={() => setViewMode("split")}
-            className={`hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-              viewMode === "split" ? "bg-card text-indigo-400 shadow-xs border border-border" : "hover:text-foreground"
+            className={`hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+              viewMode === "split" ? "bg-card text-indigo-500 shadow-xs border border-border" : "hover:text-foreground"
             }`}
           >
             <Columns className="w-3.5 h-3.5" />
@@ -224,8 +177,8 @@ export function NoteEditor({ pageId, initialData, onTitleChange }: NoteEditorPro
 
           <button
             onClick={() => setViewMode("preview")}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-              viewMode === "preview" ? "bg-card text-indigo-400 shadow-xs border border-border" : "hover:text-foreground"
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+              viewMode === "preview" ? "bg-card text-indigo-500 shadow-xs border border-border" : "hover:text-foreground"
             }`}
           >
             <Eye className="w-3.5 h-3.5" />
@@ -233,61 +186,135 @@ export function NoteEditor({ pageId, initialData, onTitleChange }: NoteEditorPro
           </button>
         </div>
 
-        {/* Quick Toolbar */}
-        <div className="hidden lg:flex items-center gap-1 bg-background/80 p-1 rounded-xl border border-border/80 text-slate-500">
+        {/* Formatting Toolbar */}
+        <div className="hidden lg:flex items-center gap-0.5 bg-muted p-1 rounded-lg border border-border text-muted-foreground">
           <button
-            onClick={() => insertMarkdown("**", "**")}
-            className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-foreground cursor-pointer transition-colors"
-            title="Bold"
+            onClick={() => insertMarkdown("**", "**", "bold text")}
+            className="p-1 rounded-md hover:bg-card hover:text-foreground cursor-pointer transition-colors"
+            title="Bold (**text**)"
           >
             <Bold className="w-3.5 h-3.5" />
           </button>
           <button
-            onClick={() => insertMarkdown("*", "*")}
-            className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-foreground cursor-pointer transition-colors"
-            title="Italic"
+            onClick={() => insertMarkdown("*", "*", "italic text")}
+            className="p-1 rounded-md hover:bg-card hover:text-foreground cursor-pointer transition-colors"
+            title="Italic (*text*)"
           >
             <Italic className="w-3.5 h-3.5" />
           </button>
           <button
-            onClick={() => insertMarkdown("# ")}
-            className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-foreground cursor-pointer transition-colors"
+            onClick={() => insertMarkdown("~~", "~~", "strikethrough")}
+            className="p-1 rounded-md hover:bg-card hover:text-foreground cursor-pointer transition-colors"
+            title="Strikethrough (~~text~~)"
+          >
+            <Strikethrough className="w-3.5 h-3.5" />
+          </button>
+          <div className="w-px h-4 bg-border my-auto mx-0.5" />
+          <button
+            onClick={() => insertMarkdown("# ", "", "Heading 1")}
+            className="p-1 rounded-md hover:bg-card hover:text-foreground cursor-pointer transition-colors"
             title="Heading 1"
           >
             <Heading1 className="w-3.5 h-3.5" />
           </button>
           <button
-            onClick={() => insertMarkdown("\n```ts\n", "\n```\n")}
-            className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-foreground cursor-pointer transition-colors"
-            title="Code Block"
+            onClick={() => insertMarkdown("## ", "", "Heading 2")}
+            className="p-1 rounded-md hover:bg-card hover:text-foreground cursor-pointer transition-colors"
+            title="Heading 2"
+          >
+            <Heading2 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => insertMarkdown("### ", "", "Heading 3")}
+            className="p-1 rounded-md hover:bg-card hover:text-foreground cursor-pointer transition-colors"
+            title="Heading 3"
+          >
+            <Heading3 className="w-3.5 h-3.5" />
+          </button>
+          <div className="w-px h-4 bg-border my-auto mx-0.5" />
+          <button
+            onClick={() => insertMarkdown("`", "`", "code")}
+            className="p-1 rounded-md hover:bg-card hover:text-foreground cursor-pointer transition-colors"
+            title="Inline Code"
           >
             <Code className="w-3.5 h-3.5 text-indigo-500" />
           </button>
           <button
-            onClick={() => insertMarkdown("- ")}
-            className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-foreground cursor-pointer transition-colors"
+            onClick={() => insertMarkdown("\n```typescript\n", "\n```\n", "// Write TypeScript code here")}
+            className="p-1.5 rounded-md hover:bg-card hover:text-foreground cursor-pointer transition-colors text-[10px] font-bold font-mono"
+            title="Code Block"
+          >
+            ```
+          </button>
+          <button
+            onClick={() => insertMarkdown("\n> ", "", "Quote text")}
+            className="p-1 rounded-md hover:bg-card hover:text-foreground cursor-pointer transition-colors"
+            title="Blockquote"
+          >
+            <Quote className="w-3.5 h-3.5" />
+          </button>
+          <div className="w-px h-4 bg-border my-auto mx-0.5" />
+          <button
+            onClick={() => insertMarkdown("- ", "", "List item")}
+            className="p-1 rounded-md hover:bg-card hover:text-foreground cursor-pointer transition-colors"
             title="Bullet List"
           >
             <List className="w-3.5 h-3.5" />
           </button>
           <button
-            onClick={() => insertMarkdown("- [ ] ")}
-            className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-foreground cursor-pointer transition-colors"
-            title="Task Item"
+            onClick={() => insertMarkdown("1. ", "", "First item")}
+            className="p-1 rounded-md hover:bg-card hover:text-foreground cursor-pointer transition-colors"
+            title="Numbered List"
+          >
+            <ListOrdered className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => insertMarkdown("- [ ] ", "", "Task item")}
+            className="p-1 rounded-md hover:bg-card hover:text-foreground cursor-pointer transition-colors"
+            title="Task List"
           >
             <CheckSquare className="w-3.5 h-3.5" />
+          </button>
+          <div className="w-px h-4 bg-border my-auto mx-0.5" />
+          <button
+            onClick={() => insertMarkdown("\n| Header 1 | Header 2 |\n| --- | --- |\n| Cell 1 | Cell 2 |\n")}
+            className="p-1 rounded-md hover:bg-card hover:text-foreground cursor-pointer transition-colors"
+            title="Table"
+          >
+            <TableIcon className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => insertMarkdown("[", "](https://example.com)", "Link Title")}
+            className="p-1 rounded-md hover:bg-card hover:text-foreground cursor-pointer transition-colors"
+            title="Link"
+          >
+            <LinkIcon className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => insertMarkdown("![Alt Text](", ")", "https://images.unsplash.com/photo-1555066931-4365d14bab8c")}
+            className="p-1 rounded-md hover:bg-card hover:text-foreground cursor-pointer transition-colors"
+            title="Image"
+          >
+            <ImageIcon className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => insertMarkdown("\n---\n", "")}
+            className="p-1 rounded-md hover:bg-card hover:text-foreground cursor-pointer transition-colors"
+            title="Horizontal Rule"
+          >
+            <Minus className="w-3.5 h-3.5" />
           </button>
         </div>
 
         {/* Persistence Indicator */}
         <div className="flex items-center gap-3">
-          <div className="hidden xl:flex items-center gap-2 text-[11px] font-semibold text-slate-400">
+          <div className="hidden xl:flex items-center gap-2 text-[11px] font-semibold text-muted-foreground">
             <span>{wordCount} words</span>
             <span>&bull;</span>
             <span>{charCount} chars</span>
           </div>
 
-          <div className="flex items-center gap-2 text-xs font-semibold px-3 py-1 rounded-xl bg-card border border-border shadow-xs">
+          <div className="flex items-center gap-2 text-xs font-semibold px-2.5 py-1 rounded-lg bg-card border border-border shadow-xs">
             {saveState === "saving" && (
               <span className="flex items-center gap-1.5 text-amber-500">
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -318,26 +345,162 @@ export function NoteEditor({ pageId, initialData, onTitleChange }: NoteEditorPro
       <div className="flex-1 flex overflow-hidden">
         {/* Edit Pane */}
         {(viewMode === "edit" || viewMode === "split") && (
-          <div className="flex-1 p-6 md:p-8 overflow-y-auto border-r border-border/40">
+          <div className="flex-1 p-4 sm:p-6 overflow-y-auto border-r border-border bg-background">
             <textarea
               ref={textareaRef}
               value={textContent}
               onChange={(e) => handleContentChange(e.target.value)}
-              placeholder="# Developer Notebook Entry&#10;&#10;Write system designs, API schemas, or code snippets here..."
-              className="w-full h-full min-h-[500px] bg-transparent resize-none focus:outline-none text-foreground font-mono text-sm leading-relaxed placeholder:text-slate-500"
+              placeholder="# Developer Notebook Entry&#10;&#10;Write system designs, API schemas, code snippets, or GFM tables here..."
+              className="w-full h-full min-h-[500px] bg-transparent resize-none focus:outline-none text-foreground font-mono text-xs sm:text-sm leading-relaxed placeholder:text-muted-foreground"
             />
           </div>
         )}
 
-        {/* Live Preview Pane */}
+        {/* Live GFM Markdown Preview Pane */}
         {(viewMode === "preview" || viewMode === "split") && (
-          <div className="flex-1 p-6 md:p-8 overflow-y-auto bg-card/30">
-            <div className="max-w-3xl mx-auto space-y-2">
-              {renderSimpleMarkdown(textContent)}
+          <div className={`flex-1 p-4 sm:p-6 overflow-y-auto bg-card/40 ${viewMode === "split" ? "hidden md:block" : ""}`}>
+            <div className="max-w-3xl mx-auto space-y-4 text-foreground text-xs sm:text-sm leading-relaxed">
+              {!textContent.trim() ? (
+                <p className="text-muted-foreground italic text-xs">
+                  No content yet. Type in the editor pane to see live GFM rendered preview...
+                </p>
+              ) : (
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeHighlight]}
+                  components={{
+                    h1: ({ children }) => (
+                      <h1 className="text-xl sm:text-2xl font-bold text-foreground border-b border-border pb-2 mt-4 mb-3">
+                        {children}
+                      </h1>
+                    ),
+                    h2: ({ children }) => (
+                      <h2 className="text-lg sm:text-xl font-bold text-foreground border-b border-border/50 pb-1.5 mt-4 mb-2">
+                        {children}
+                      </h2>
+                    ),
+                    h3: ({ children }) => (
+                      <h3 className="text-base sm:text-lg font-bold text-foreground mt-3 mb-1.5">
+                        {children}
+                      </h3>
+                    ),
+                    h4: ({ children }) => (
+                      <h4 className="text-sm font-bold text-foreground mt-2 mb-1">
+                        {children}
+                      </h4>
+                    ),
+                    h5: ({ children }) => (
+                      <h5 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mt-2 mb-1">
+                        {children}
+                      </h5>
+                    ),
+                    h6: ({ children }) => (
+                      <h6 className="text-xs font-semibold text-muted-foreground italic mt-2 mb-1">
+                        {children}
+                      </h6>
+                    ),
+                    p: ({ children }) => (
+                      <p className="text-foreground leading-relaxed my-2">
+                        {children}
+                      </p>
+                    ),
+                    blockquote: ({ children }) => (
+                      <blockquote className="border-l-4 border-indigo-500 bg-muted/40 pl-4 py-2 my-3 rounded-r-lg italic text-muted-foreground">
+                        {children}
+                      </blockquote>
+                    ),
+                    ul: ({ children }) => (
+                      <ul className="list-disc pl-5 my-2 space-y-1 text-foreground">
+                        {children}
+                      </ul>
+                    ),
+                    ol: ({ children }) => (
+                      <ol className="list-decimal pl-5 my-2 space-y-1 text-foreground">
+                        {children}
+                      </ol>
+                    ),
+                    li: ({ children }) => (
+                      <li className="text-foreground my-0.5">
+                        {children}
+                      </li>
+                    ),
+                    table: ({ children }) => (
+                      <div className="overflow-x-auto my-4 rounded-lg border border-border">
+                        <table className="w-full text-left border-collapse text-xs sm:text-sm">
+                          {children}
+                        </table>
+                      </div>
+                    ),
+                    thead: ({ children }) => (
+                      <thead className="bg-muted text-foreground font-bold border-b border-border">
+                        {children}
+                      </thead>
+                    ),
+                    tbody: ({ children }) => (
+                      <tbody className="divide-y divide-border/60">
+                        {children}
+                      </tbody>
+                    ),
+                    tr: ({ children }) => (
+                      <tr className="hover:bg-muted/30 transition-colors">
+                        {children}
+                      </tr>
+                    ),
+                    th: ({ children }) => (
+                      <th className="px-3 py-2 font-bold text-foreground border-r border-border last:border-r-0">
+                        {children}
+                      </th>
+                    ),
+                    td: ({ children }) => (
+                      <td className="px-3 py-2 border-r border-border last:border-r-0">
+                        {children}
+                      </td>
+                    ),
+                    code: ({ className, children, ...props }) => {
+                      const match = /language-(\w+)/.exec(className || "");
+                      if (match && match[1] === "mermaid") {
+                        return <MermaidRenderer chart={String(children).replace(/\n$/, "")} />;
+                      }
+                      const isInline = !className;
+                      return isInline ? (
+                        <code className="bg-muted px-1.5 py-0.5 rounded text-indigo-500 dark:text-indigo-400 font-mono text-xs font-semibold" {...props}>
+                          {children}
+                        </code>
+                      ) : (
+                        <code className={`${className} font-mono text-xs block overflow-x-auto p-4 rounded-xl bg-slate-950 text-slate-100 border border-border my-3`} {...props}>
+                          {children}
+                        </code>
+                      );
+                    },
+                    hr: () => <hr className="border-border my-6" />,
+                    a: ({ href, children }) => (
+                      <a href={href} target="_blank" rel="noopener noreferrer" className="text-indigo-500 hover:underline font-semibold">
+                        {children}
+                      </a>
+                    ),
+                    img: ({ src, alt }) => (
+                      <img src={src} alt={alt} className="max-w-full h-auto rounded-lg border border-border my-3" />
+                    ),
+                  }}
+                >
+                  {textContent}
+                </ReactMarkdown>
+              )}
             </div>
           </div>
         )}
       </div>
+
+      <VersionHistoryDrawer
+        pageId={pageId}
+        isOpen={isVersionDrawerOpen}
+        onClose={() => setIsVersionDrawerOpen(false)}
+        onVersionRestored={(newTitle, newContent) => {
+          setTitle(newTitle);
+          setTextContent(newContent);
+          onTitleChange?.(newTitle);
+        }}
+      />
     </div>
   );
 }

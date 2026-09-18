@@ -20,6 +20,7 @@ import {
   StickyNote,
   Sparkles,
   Timer,
+  Compass,
 } from "lucide-react";
 import { BrandLogo } from "@/components/ui/BrandLogo";
 import { useToast } from "@/components/ui/Toast";
@@ -28,6 +29,7 @@ interface HeaderProps {
   onOpenSearch: () => void;
   onOpenExportImport: () => void;
   onOpenDevTools?: () => void;
+  onOpenDevHub?: () => void;
   onOpenCheatSheet?: () => void;
   onToggleScratchpad?: () => void;
   onOpenSnippets?: () => void;
@@ -43,6 +45,7 @@ export function Header({
   onOpenSearch,
   onOpenExportImport,
   onOpenDevTools,
+  onOpenDevHub,
   onOpenCheatSheet,
   onToggleScratchpad,
   onOpenSnippets,
@@ -157,13 +160,13 @@ export function Header({
   }
 
   return (
-    <header className="h-14 w-full border-b border-border bg-card/90 backdrop-blur-xl px-3.5 sm:px-4 flex items-center justify-between shrink-0 select-none z-30 transition-all">
+    <header className="h-13 w-full border-b border-border bg-card px-3 sm:px-4 flex items-center justify-between shrink-0 select-none z-30 transition-colors">
       {/* Left Brand Area & Breadcrumbs */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5">
         <button
           onClick={onToggleSidebar}
           title={sidebarOpen ? "Collapse Sidebar" : "Expand Sidebar"}
-          className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-foreground transition-all cursor-pointer active:scale-95 border border-transparent hover:border-border"
+          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer active:scale-95"
         >
           {sidebarOpen ? (
             <PanelLeftClose className="w-4 h-4" />
@@ -176,14 +179,14 @@ export function Header({
 
         {/* Breadcrumb Navigation */}
         {activeBreadcrumb?.pageTitle && (
-          <div className="hidden lg:flex items-center gap-1.5 pl-3 border-l border-border/60 text-xs font-medium text-slate-400">
+          <div className="hidden lg:flex items-center gap-1.5 pl-2.5 border-l border-border text-xs font-medium text-muted-foreground">
             {activeBreadcrumb.folderName && (
               <>
-                <span className="truncate max-w-[120px] text-slate-500 dark:text-slate-400">{activeBreadcrumb.folderName}</span>
-                <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <span className="truncate max-w-[120px]">{activeBreadcrumb.folderName}</span>
+                <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
               </>
             )}
-            <span className="font-bold text-foreground truncate max-w-[160px]">
+            <span className="font-semibold text-foreground truncate max-w-[160px]">
               {activeBreadcrumb.pageTitle}
             </span>
           </div>
@@ -193,36 +196,46 @@ export function Header({
       {/* Middle Command Search Trigger */}
       <button
         onClick={onOpenSearch}
-        className="hidden md:flex items-center gap-3 px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 hover:bg-slate-200/60 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-foreground text-xs font-medium transition-all shadow-xs group cursor-pointer"
+        className="hidden md:flex items-center gap-2.5 px-3 py-1.5 rounded-lg border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground text-xs font-medium transition-colors cursor-pointer"
       >
-        <Search className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-500 transition-colors" />
-        <span className="text-slate-500 dark:text-slate-400 group-hover:text-foreground">
-          Search pages, notes & tools...
-        </span>
-        <kbd className="px-1.5 py-0.5 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-[10px] font-mono text-slate-500 dark:text-slate-400 group-hover:text-foreground flex items-center gap-0.5">
+        <Search className="w-3.5 h-3.5 text-muted-foreground" />
+        <span>Search pages, notes & tools...</span>
+        <kbd className="px-1.5 py-0.5 rounded border border-border bg-muted text-[10px] font-mono text-muted-foreground flex items-center gap-0.5">
           <Command className="w-2.5 h-2.5" />K
         </kbd>
       </button>
 
       {/* Right Controls */}
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1">
         <button
           onClick={onOpenSearch}
-          className="md:hidden p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 cursor-pointer"
+          className="md:hidden p-1.5 rounded-lg hover:bg-muted text-muted-foreground cursor-pointer"
           title="Search Workspace"
         >
           <Search className="w-4 h-4" />
         </button>
 
+        {/* Developer Hub Trigger */}
+        {onOpenDevHub && (
+          <button
+            onClick={onOpenDevHub}
+            className="p-1.5 px-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-emerald-500 transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
+            title="Open Developer Hub"
+          >
+            <Compass className="w-4 h-4 text-emerald-500" />
+            <span className="hidden xl:inline">Dev Hub</span>
+          </button>
+        )}
+
         {/* Developer Utilities Modal Trigger */}
         {onOpenDevTools && (
           <button
             onClick={onOpenDevTools}
-            className="p-2 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 transition-colors cursor-pointer active:scale-95 flex items-center gap-1 border border-transparent hover:border-indigo-500/20"
-            title="Open Developer Utilities (JSON, Base64, Epoch, UUID)"
+            className="p-1.5 px-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-indigo-500 transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
+            title="Open Developer Utilities"
           >
-            <Code2 className="w-4 h-4" />
-            <span className="hidden xl:inline text-xs font-bold">DevTools</span>
+            <Code2 className="w-4 h-4 text-indigo-500" />
+            <span className="hidden xl:inline">DevTools</span>
           </button>
         )}
 
@@ -230,11 +243,11 @@ export function Header({
         {onOpenSnippets && (
           <button
             onClick={onOpenSnippets}
-            className="p-2 rounded-xl hover:bg-purple-50 dark:hover:bg-purple-950/50 text-purple-600 dark:text-purple-400 transition-colors cursor-pointer active:scale-95 flex items-center gap-1 border border-transparent hover:border-purple-500/20"
+            className="p-1.5 px-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-purple-500 transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
             title="Open Code Snippet Vault (Alt+V)"
           >
-            <Sparkles className="w-4 h-4" />
-            <span className="hidden xl:inline text-xs font-bold">Snippets</span>
+            <Sparkles className="w-4 h-4 text-purple-500" />
+            <span className="hidden xl:inline">Snippets</span>
           </button>
         )}
 
@@ -242,11 +255,11 @@ export function Header({
         {onOpenPomodoro && (
           <button
             onClick={onOpenPomodoro}
-            className="p-2 rounded-xl hover:bg-amber-50 dark:hover:bg-amber-950/50 text-amber-600 dark:text-amber-400 transition-colors cursor-pointer active:scale-95 flex items-center gap-1 border border-transparent hover:border-amber-500/20"
+            className="p-1.5 px-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-amber-500 transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
             title="Open Focus Pomodoro Timer (Alt+T)"
           >
-            <Timer className="w-4 h-4" />
-            <span className="hidden xl:inline text-xs font-bold">Timer</span>
+            <Timer className="w-4 h-4 text-amber-500" />
+            <span className="hidden xl:inline">Timer</span>
           </button>
         )}
 
@@ -254,11 +267,11 @@ export function Header({
         {onOpenCheatSheet && (
           <button
             onClick={onOpenCheatSheet}
-            className="p-2 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-950/50 text-blue-600 dark:text-blue-400 transition-colors cursor-pointer active:scale-95 flex items-center gap-1 border border-transparent hover:border-blue-500/20"
-            title="Open Developer CheatSheet (Git, HTTP, Regex, Markdown)"
+            className="p-1.5 px-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-blue-500 transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
+            title="Open Developer CheatSheet"
           >
-            <BookOpen className="w-4 h-4" />
-            <span className="hidden xl:inline text-xs font-bold">CheatSheet</span>
+            <BookOpen className="w-4 h-4 text-blue-500" />
+            <span className="hidden xl:inline">CheatSheet</span>
           </button>
         )}
 
@@ -266,11 +279,11 @@ export function Header({
         {onToggleScratchpad && (
           <button
             onClick={onToggleScratchpad}
-            className="p-2 rounded-xl hover:bg-amber-50 dark:hover:bg-amber-950/50 text-amber-600 dark:text-amber-400 transition-colors cursor-pointer active:scale-95 flex items-center gap-1 border border-transparent hover:border-amber-500/20"
+            className="p-1.5 px-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-amber-500 transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
             title="Toggle Quick Scratchpad (Alt+S)"
           >
-            <StickyNote className="w-4 h-4" />
-            <span className="hidden xl:inline text-xs font-bold">Scratchpad</span>
+            <StickyNote className="w-4 h-4 text-amber-500" />
+            <span className="hidden xl:inline">Scratchpad</span>
           </button>
         )}
 
@@ -281,31 +294,31 @@ export function Header({
               onToggleZenMode();
               showToast("Entered Zen Mode — Press ESC to exit", "info");
             }}
-            className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors cursor-pointer active:scale-95"
+            className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors cursor-pointer"
             title="Toggle Zen Mode (Focus Mode - ESC to exit)"
           >
-            <Maximize2 className="w-4 h-4 text-slate-400 hover:text-indigo-500" />
+            <Maximize2 className="w-4 h-4" />
           </button>
         )}
 
         <button
           onClick={onOpenExportImport}
-          className="px-2.5 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors flex items-center gap-1.5 text-xs font-semibold cursor-pointer active:scale-95 border border-transparent hover:border-border"
+          className="p-1.5 px-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 text-xs font-semibold cursor-pointer"
           title="Backup & Restore Workspace"
         >
-          <Database className="w-3.5 h-3.5 text-indigo-500" />
-          <span className="hidden sm:inline">Backup/Import</span>
+          <Database className="w-4 h-4 text-indigo-500" />
+          <span className="hidden sm:inline">Backup</span>
         </button>
 
         <button
           onClick={toggleTheme}
-          className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer active:scale-95 border border-transparent hover:border-border"
+          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors cursor-pointer"
           title="Toggle Dark/Light Theme"
         >
           {isDark ? (
             <Sun className="w-4 h-4 text-amber-400" />
           ) : (
-            <Moon className="w-4 h-4 text-indigo-600" />
+            <Moon className="w-4 h-4 text-indigo-500" />
           )}
         </button>
 
@@ -315,14 +328,14 @@ export function Header({
         <button
           onClick={handleLockNotebook}
           disabled={isLocking}
-          className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+          className="px-2.5 py-1.5 rounded-lg bg-muted hover:bg-muted/80 text-foreground border border-border font-semibold text-xs flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer"
         >
           {isLocking ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
           ) : (
             <Lock className="w-3.5 h-3.5 text-amber-500" />
           )}
-          <span className="hidden sm:inline">Lock Workspace</span>
+          <span className="hidden sm:inline">Lock</span>
         </button>
       </div>
     </header>

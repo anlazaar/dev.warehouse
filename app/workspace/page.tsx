@@ -12,6 +12,8 @@ import { DevCheatSheetModal } from "@/components/workspace/DevCheatSheetModal";
 import { DevScratchpadDrawer } from "@/components/workspace/DevScratchpadDrawer";
 import { DevSnippetVaultModal } from "@/components/workspace/DevSnippetVaultModal";
 import { DevPomodoroWidget } from "@/components/workspace/DevPomodoroWidget";
+import { DevHubModal } from "@/components/hub/DevHubModal";
+import { Dashboard } from "@/components/workspace/Dashboard";
 import { ItemDialog, ConfirmDeleteDialog } from "@/components/workspace/Dialogs";
 import { useToast } from "@/components/ui/Toast";
 import {
@@ -52,6 +54,7 @@ export default function WorkspacePage() {
 
   // Developer Tools State
   const [isDevToolsOpen, setIsDevToolsOpen] = useState(false);
+  const [isDevHubOpen, setIsDevHubOpen] = useState(false);
   const [isCheatSheetOpen, setIsCheatSheetOpen] = useState(false);
   const [isScratchpadOpen, setIsScratchpadOpen] = useState(false);
   const [isSnippetsOpen, setIsSnippetsOpen] = useState(false);
@@ -259,6 +262,7 @@ export default function WorkspacePage() {
           onOpenSearch={() => setIsSearchOpen(true)}
           onOpenExportImport={() => setIsExportImportOpen(true)}
           onOpenDevTools={() => setIsDevToolsOpen(true)}
+          onOpenDevHub={() => setIsDevHubOpen(true)}
           onOpenCheatSheet={() => setIsCheatSheetOpen(true)}
           onToggleScratchpad={() => setIsScratchpadOpen(!isScratchpadOpen)}
           onOpenSnippets={() => setIsSnippetsOpen(true)}
@@ -307,6 +311,8 @@ export default function WorkspacePage() {
               });
             }}
             onTogglePinPage={(id) => handleTogglePinPage(id)}
+            onOpenDevHub={() => setIsDevHubOpen(true)}
+            onCloseMobileSidebar={() => setSidebarOpen(false)}
           />
         )}
 
@@ -354,122 +360,16 @@ export default function WorkspacePage() {
               />
             )
           ) : (
-            /* DEV.WAREHOUSE Command Center Empty State */
-            <div className="w-full h-full flex flex-col items-center justify-center p-6 md:p-12 overflow-y-auto bg-dot-grid relative">
-              <div className="max-w-3xl w-full flex flex-col items-center text-center relative z-10 animate-fade-in-scale space-y-8">
-                {/* Hero Badge */}
-                <div className="flex flex-col items-center space-y-3">
-                  <div className="w-16 h-16 rounded-3xl brand-gradient-bg flex items-center justify-center text-white shadow-xl brand-glow">
-                    <ShieldCheck className="w-9 h-9" />
-                  </div>
-                  <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 border border-indigo-500/20 text-xs font-extrabold uppercase tracking-wider">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>DEV.WAREHOUSE Pro Command Center</span>
-                  </div>
-                  <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-foreground">
-                    Private Developer Workspace
-                  </h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 max-w-lg leading-relaxed">
-                    Visual system architecture with Excalidraw, high-speed markdown notes, built-in developer tools & quick references.
-                  </p>
-                </div>
-
-                {/* Quick Action Cards Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
-                  <div
-                    onClick={() => handleCreatePage("canvas")}
-                    className="p-5 rounded-2xl bg-card border border-border hover:border-amber-500/50 hover:shadow-xl hover:shadow-amber-500/10 text-left transition-all duration-200 cursor-pointer group flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                        <Layout className="w-5 h-5" />
-                      </div>
-                      <h3 className="text-sm font-bold text-foreground mb-1 group-hover:text-amber-500 transition-colors flex items-center justify-between">
-                        <span>New Canvas</span>
-                        <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 leading-normal">
-                        Excalidraw canvas for system diagrams & architecture.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div
-                    onClick={() => handleCreatePage("doc")}
-                    className="p-5 rounded-2xl bg-card border border-border hover:border-blue-500/50 hover:shadow-xl hover:shadow-blue-500/10 text-left transition-all duration-200 cursor-pointer group flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                        <FileText className="w-5 h-5" />
-                      </div>
-                      <h3 className="text-sm font-bold text-foreground mb-1 group-hover:text-blue-500 transition-colors flex items-center justify-between">
-                        <span>New Note</span>
-                        <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 leading-normal">
-                        Developer notebook for code snippets & specs.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div
-                    onClick={() => setIsDevToolsOpen(true)}
-                    className="p-5 rounded-2xl bg-card border border-border hover:border-indigo-500/50 hover:shadow-xl hover:shadow-indigo-500/10 text-left transition-all duration-200 cursor-pointer group flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                        <Code2 className="w-5 h-5" />
-                      </div>
-                      <h3 className="text-sm font-bold text-foreground mb-1 group-hover:text-indigo-500 transition-colors flex items-center justify-between">
-                        <span>Dev Utilities</span>
-                        <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 leading-normal">
-                        JSON Formatter, Base64, Epoch & UUID tools.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div
-                    onClick={() => setIsCheatSheetOpen(true)}
-                    className="p-5 rounded-2xl bg-card border border-border hover:border-purple-500/50 hover:shadow-xl hover:shadow-purple-500/10 text-left transition-all duration-200 cursor-pointer group flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                        <BookOpen className="w-5 h-5" />
-                      </div>
-                      <h3 className="text-sm font-bold text-foreground mb-1 group-hover:text-purple-500 transition-colors flex items-center justify-between">
-                        <span>CheatSheet</span>
-                        <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 leading-normal">
-                        Quick reference for Git, HTTP, Regex & Markdown.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Shortcuts & Quick Info Footer Bar */}
-                <div className="p-4 rounded-2xl glass-panel bg-card/60 border border-border/80 w-full flex flex-wrap items-center justify-between gap-4 text-xs font-medium text-slate-500 dark:text-slate-400">
-                  <div className="flex items-center gap-2">
-                    <kbd className="px-2 py-0.5 rounded-md border border-border bg-slate-100 dark:bg-slate-800 font-mono text-[10px] text-foreground font-bold">
-                      ⌘K / Ctrl+K
-                    </kbd>
-                    <span>Search workspace</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <kbd className="px-2 py-0.5 rounded-md border border-border bg-slate-100 dark:bg-slate-800 font-mono text-[10px] text-foreground font-bold">
-                      Alt+S
-                    </kbd>
-                    <span>Toggle Floating Scratchpad</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-amber-500" />
-                    <span>Real-time Local Auto-Save</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <Dashboard
+              pages={pages}
+              folders={folders}
+              onSelectPage={(id) => setActivePageId(id)}
+              onCreatePage={(type, folderId) => handleCreatePage(type, folderId)}
+              onOpenDevTools={() => setIsDevToolsOpen(true)}
+              onOpenDevHub={() => setIsDevHubOpen(true)}
+              onOpenSnippets={() => setIsSnippetsOpen(true)}
+              onOpenCheatSheet={() => setIsCheatSheetOpen(true)}
+            />
           )}
         </main>
       </div>
@@ -520,6 +420,12 @@ export default function WorkspacePage() {
       <DevPomodoroWidget
         isOpen={isPomodoroOpen}
         onClose={() => setIsPomodoroOpen(false)}
+      />
+
+      {/* Developer Hub Live Resources Modal */}
+      <DevHubModal
+        isOpen={isDevHubOpen}
+        onClose={() => setIsDevHubOpen(false)}
       />
 
       {/* Folder Creation/Rename Dialog */}

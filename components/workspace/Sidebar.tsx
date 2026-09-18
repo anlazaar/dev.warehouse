@@ -16,6 +16,8 @@ import {
   Copy,
   Star,
   Sparkles,
+  Home,
+  Compass,
 } from "lucide-react";
 
 export interface PageData {
@@ -23,8 +25,10 @@ export interface PageData {
   title: string;
   type: "canvas" | "doc";
   folderId?: string | null;
+  projectId?: string | null;
   updatedAt?: string;
   isPinned?: boolean;
+  isFavorite?: boolean;
 }
 
 export interface FolderData {
@@ -33,12 +37,24 @@ export interface FolderData {
   createdAt?: string;
 }
 
+export interface ProjectData {
+  _id: string;
+  name: string;
+  color?: string;
+  isFavorite?: boolean;
+}
+
 interface SidebarProps {
   isOpen: boolean;
   folders: FolderData[];
   pages: PageData[];
+  projects?: ProjectData[];
   activePageId: string | null;
-  onSelectPage: (id: string) => void;
+  activeProjectId?: string | null;
+  onSelectPage: (id: string | null) => void;
+  onSelectProject?: (id: string | null) => void;
+  onCreateProject?: () => void;
+  onOpenTrashModal?: () => void;
   onCreatePage: (type: "canvas" | "doc", folderId?: string | null) => void;
   onCreateFolder: () => void;
   onRenameFolder: (folder: FolderData) => void;
@@ -47,14 +63,21 @@ interface SidebarProps {
   onDuplicatePage: (id: string) => void;
   onDeletePage: (id: string) => void;
   onTogglePinPage?: (id: string) => void;
+  onOpenDevHub?: () => void;
+  onCloseMobileSidebar?: () => void;
 }
 
 export function Sidebar({
   isOpen,
   folders,
   pages,
+  projects = [],
   activePageId,
+  activeProjectId = null,
   onSelectPage,
+  onSelectProject,
+  onCreateProject,
+  onOpenTrashModal,
   onCreatePage,
   onCreateFolder,
   onRenameFolder,
@@ -63,6 +86,8 @@ export function Sidebar({
   onDuplicatePage,
   onDeletePage,
   onTogglePinPage,
+  onOpenDevHub,
+  onCloseMobileSidebar,
 }: SidebarProps) {
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
   const [activeMenu, setActiveMenu] = useState<{
@@ -77,33 +102,141 @@ export function Sidebar({
     }));
   };
 
+  const handleSelect = (id: string | null) => {
+    onSelectPage(id);
+    onCloseMobileSidebar?.();
+  };
+
   const rootPages = pages.filter((p) => !p.folderId);
   const pinnedPages = pages.filter((p) => p.isPinned);
 
   if (!isOpen) return null;
 
   return (
-    <aside className="w-64 h-full border-r border-border bg-card/60 backdrop-blur-xl flex flex-col justify-between shrink-0 select-none overflow-hidden z-20 animate-fade-in-scale">
-      {/* Top Section */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-5">
+    <>
+      {/* Mobile Backdrop Overlay for screens below lg */}
+      <div
+        onClick={() => onCloseMobileSidebar?.()}
+        className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-30 lg:hidden animate-fade-in"
+      />
+
+      <aside className="fixed lg:static inset-y-0 left-0 w-72 max-w-[85vw] lg:w-64 h-[100dvh] lg:h-full border-r border-border bg-card flex flex-col justify-between shrink-0 select-none overflow-hidden z-40 lg:z-20 transition-all">
+        {/* Mobile Header Close Button */}
+        <div className="flex lg:hidden items-center justify-between p-3 border-b border-border bg-muted/30">
+          <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            Workspace Navigation
+          </span>
+          <button
+            onClick={() => onCloseMobileSidebar?.()}
+            className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer"
+            title="Close Navigation Drawer"
+          >
+            <ChevronRight className="w-4 h-4 rotate-180" />
+          </button>
+        </div>
+        {/* Top Section */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-4">
+        {/* Navigation Items */}
+        <div className="space-y-1">
+          <button
+            onClick={() => handleSelect(null)}
+            className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+              activePageId === null && !activeProjectId
+                ? "bg-indigo-500/10 text-indigo-500 font-bold"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted"
+            }`}
+          >
+            <Home className="w-4 h-4 text-indigo-500" />
+            <span>Workspace Dashboard</span>
+          </button>
+
+          {onOpenDevHub && (
+            <button
+              onClick={onOpenDevHub}
+              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+            >
+              <Compass className="w-4 h-4 text-emerald-500" />
+              <span>Developer Hub</span>
+            </button>
+          )}
+
+          {onOpenTrashModal && (
+            <button
+              onClick={onOpenTrashModal}
+              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
+            >
+              <Trash2 className="w-4 h-4 text-red-500" />
+              <span>Trash & Recovery</span>
+            </button>
+          )}
+        </div>
+
+        {/* Projects Section */}
+        {projects && projects.length > 0 && (
+          <div className="space-y-1.5 pt-2 border-t border-border">
+            <div className="flex items-center justify-between px-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Projects
+              </span>
+              {onCreateProject && (
+                <button
+                  onClick={onCreateProject}
+                  title="New Project"
+                  className="p-1 rounded-md hover:bg-muted text-indigo-500 transition-colors cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-0.5">
+              {projects.map((proj) => {
+                const isActive = activeProjectId === proj._id;
+                return (
+                  <button
+                    key={proj._id}
+                    onClick={() => onSelectProject?.(proj._id)}
+                    className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                      isActive
+                        ? "bg-indigo-500/15 text-indigo-500 font-bold border border-indigo-500/30"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      <div
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: proj.color || "#6366f1" }}
+                      />
+                      <span className="truncate">{proj.name}</span>
+                    </div>
+                    {proj.isFavorite && (
+                      <Star className="w-3 h-3 text-amber-500 fill-amber-500 shrink-0" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Quick Action Header */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between px-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+        <div className="space-y-2 pt-2 border-t border-border">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
               Workspace Pages
             </span>
             <div className="flex items-center gap-1">
               <button
                 onClick={() => onCreateFolder()}
-                title="Create New Folder"
-                className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-400 transition-colors cursor-pointer"
+                title="Create Folder"
+                className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
               >
                 <FolderPlus className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={() => onCreatePage("canvas")}
-                title="Create Excalidraw Canvas"
-                className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 text-amber-500 transition-colors cursor-pointer"
+                title="Create Canvas"
+                className="p-1 rounded-md hover:bg-muted text-amber-500 transition-colors cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
               </button>
@@ -113,17 +246,17 @@ export function Sidebar({
           <div className="grid grid-cols-2 gap-1.5">
             <button
               onClick={() => onCreatePage("canvas")}
-              className="flex items-center justify-center gap-1.5 p-2 rounded-xl border border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 text-amber-500 text-xs font-bold transition-all group cursor-pointer"
+              className="flex items-center justify-center gap-1.5 p-1.5 rounded-lg border border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 text-amber-500 text-xs font-semibold transition-colors cursor-pointer"
             >
-              <Layout className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+              <Layout className="w-3.5 h-3.5" />
               <span>+ Canvas</span>
             </button>
 
             <button
               onClick={() => onCreatePage("doc")}
-              className="flex items-center justify-center gap-1.5 p-2 rounded-xl border border-blue-500/20 bg-blue-500/5 hover:bg-blue-500/10 text-blue-500 text-xs font-bold transition-all group cursor-pointer"
+              className="flex items-center justify-center gap-1.5 p-1.5 rounded-lg border border-blue-500/20 bg-blue-500/5 hover:bg-blue-500/10 text-blue-500 text-xs font-semibold transition-colors cursor-pointer"
             >
-              <FileText className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+              <FileText className="w-3.5 h-3.5" />
               <span>+ Note</span>
             </button>
           </div>
@@ -141,7 +274,7 @@ export function Sidebar({
               return (
                 <div
                   key={`pinned-${page._id}`}
-                  onClick={() => onSelectPage(page._id)}
+                  onClick={() => handleSelect(page._id)}
                   className={`group relative flex items-center justify-between px-2.5 py-1.5 rounded-xl cursor-pointer text-xs font-semibold transition-all ${
                     isActive
                       ? "bg-indigo-500/15 text-indigo-400 border border-indigo-500/30"
@@ -267,7 +400,7 @@ export function Sidebar({
                       return (
                         <div
                           key={page._id}
-                          onClick={() => onSelectPage(page._id)}
+                          onClick={() => handleSelect(page._id)}
                           className={`group relative flex items-center justify-between px-2.5 py-1.5 rounded-xl cursor-pointer text-xs font-semibold transition-all ${
                             isActive
                               ? "bg-indigo-500/15 text-indigo-400 border border-indigo-500/30"
@@ -365,7 +498,7 @@ export function Sidebar({
                 return (
                   <div
                     key={page._id}
-                    onClick={() => onSelectPage(page._id)}
+                    onClick={() => handleSelect(page._id)}
                     className={`group relative flex items-center justify-between px-2.5 py-1.5 rounded-xl cursor-pointer text-xs font-semibold transition-all ${
                       isActive
                         ? "bg-indigo-500/15 text-indigo-400 border border-indigo-500/30"
@@ -458,5 +591,6 @@ export function Sidebar({
         </div>
       </div>
     </aside>
+    </>
   );
 }
