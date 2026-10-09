@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
@@ -60,6 +60,31 @@ export function NoteEditor({ pageId, initialData, onTitleChange }: NoteEditorPro
 
   const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isInitialMount = useRef(true);
+  const pendingSave = useRef<{ content: string; title: string } | null>(null);
+
+  const titleRef = useRef(title);
+  useEffect(() => {
+    titleRef.current = title;
+  }, [title]);
+
+  // Unmount save flush
+  useEffect(() => {
+    return () => {
+      if (pendingSave.current) {
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        const { content, title: savedTitle } = pendingSave.current;
+        fetch(`/api/pages/${pageId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: savedTitle,
+            textContent: content,
+          }),
+          keepalive: true,
+        }).catch(console.error);
+      }
+    };
+  }, [pageId]);
 
   const saveNote = useCallback(
     async (contentToSave: string, titleToSave: string) => {
@@ -94,19 +119,24 @@ export function NoteEditor({ pageId, initialData, onTitleChange }: NoteEditorPro
     }
 
     setSaveState("saving");
+    pendingSave.current = { content: val, title: titleRef.current };
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
 
     saveTimerRef.current = setTimeout(() => {
-      saveNote(val, title);
+      saveNote(val, titleRef.current);
+      pendingSave.current = null;
     }, 1000);
   };
 
   const handleTitleChange = (val: string) => {
     setTitle(val);
     onTitleChange?.(val);
+    setSaveState("saving");
+    pendingSave.current = { content: textContent, title: val };
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
       saveNote(textContent, val);
+      pendingSave.current = null;
     }, 1000);
   };
 

@@ -62,6 +62,7 @@ interface SidebarProps {
   onRenamePage: (page: PageData) => void;
   onDuplicatePage: (id: string) => void;
   onDeletePage: (id: string) => void;
+  onMovePage?: (page: PageData) => void;
   onTogglePinPage?: (id: string) => void;
   onOpenDevHub?: () => void;
   onCloseMobileSidebar?: () => void;
@@ -85,6 +86,7 @@ export function Sidebar({
   onRenamePage,
   onDuplicatePage,
   onDeletePage,
+  onMovePage,
   onTogglePinPage,
   onOpenDevHub,
   onCloseMobileSidebar,
@@ -456,6 +458,16 @@ export function Sidebar({
                               </button>
                               <button
                                 onClick={() => {
+                                  onMovePage?.(page);
+                                  setActiveMenu(null);
+                                }}
+                                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-slate-800 text-slate-300 font-semibold"
+                              >
+                                <FolderIcon className="w-3.5 h-3.5" />
+                                <span>Move to Folder</span>
+                              </button>
+                              <button
+                                onClick={() => {
                                   onDuplicatePage(page._id);
                                   setActiveMenu(null);
                                 }}
@@ -551,6 +563,16 @@ export function Sidebar({
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                           <span>Rename Title</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            onMovePage?.(page);
+                            setActiveMenu(null);
+                          }}
+                          className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-foreground font-semibold"
+                        >
+                          <FolderIcon className="w-3.5 h-3.5" />
+                          <span>Move to Folder</span>
                         </button>
                         <button
                           onClick={() => {

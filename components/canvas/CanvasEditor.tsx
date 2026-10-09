@@ -146,6 +146,11 @@ export function CanvasEditor({ pageId, initialData, onTitleChange }: CanvasEdito
     return "dark";
   });
 
+  const titleRef = useRef(title);
+  useEffect(() => {
+    titleRef.current = title;
+  }, [title]);
+
   // Strictly memoize & sanitize initialData per pageId
   const memoizedInitialData = useMemo(() => {
     const cleanElements = Array.isArray(initialData.elements)
@@ -238,8 +243,37 @@ export function CanvasEditor({ pageId, initialData, onTitleChange }: CanvasEdito
         setSaveState("error");
       }
     },
-    [pageId, title]
+    [pageId]
   );
+
+  const pendingSave = useRef<{ elements: readonly Record<string, unknown>[], appState: Record<string, unknown>, files: Record<string, unknown>, title: string } | null>(null);
+
+  // Unmount save flush
+  useEffect(() => {
+    return () => {
+      if (pendingSave.current) {
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        const { elements, appState, files, title: savedTitle } = pendingSave.current;
+        const cleanAppState = { ...appState };
+        delete cleanAppState.collaborators;
+        delete cleanAppState.selectedElementIds;
+        delete cleanAppState.selectedGroupIds;
+        delete cleanAppState.viewBackgroundColor;
+
+        fetch(`/api/pages/${pageId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            elements,
+            appState: cleanAppState,
+            files,
+            title: savedTitle,
+          }),
+          keepalive: true,
+        }).catch(console.error);
+      }
+    };
+  }, [pageId]);
 
   const onChange = useCallback(
     (elements: readonly Record<string, unknown>[], appState: Record<string, unknown>, files: Record<string, unknown>) => {
@@ -256,6 +290,7 @@ export function CanvasEditor({ pageId, initialData, onTitleChange }: CanvasEdito
       }
 
       setSaveState("saving");
+      pendingSave.current = { elements: cleanElements, appState, files, title: titleRef.current };
 
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current);
@@ -263,6 +298,7 @@ export function CanvasEditor({ pageId, initialData, onTitleChange }: CanvasEdito
 
       saveTimerRef.current = setTimeout(() => {
         saveCanvas(cleanElements, appState, files);
+        pendingSave.current = null;
       }, 1000);
     },
     [saveCanvas]

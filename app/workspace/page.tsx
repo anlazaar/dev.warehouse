@@ -14,7 +14,7 @@ import { DevSnippetVaultModal } from "@/components/workspace/DevSnippetVaultModa
 import { DevPomodoroWidget } from "@/components/workspace/DevPomodoroWidget";
 import { DevHubModal } from "@/components/hub/DevHubModal";
 import { Dashboard } from "@/components/workspace/Dashboard";
-import { ItemDialog, ConfirmDeleteDialog } from "@/components/workspace/Dialogs";
+import { ItemDialog, ConfirmDeleteDialog, MovePageDialog } from "@/components/workspace/Dialogs";
 import { useToast } from "@/components/ui/Toast";
 import {
   Layout,
@@ -78,6 +78,12 @@ export default function WorkspacePage() {
     name: string;
   }>({ isOpen: false, type: "page", id: "", name: "" });
 
+  const [moveDialog, setMoveDialog] = useState<{
+    isOpen: boolean;
+    pageId: string;
+    pageName: string;
+  }>({ isOpen: false, pageId: "", pageName: "" });
+
   const fetchWorkspaceData = useCallback(async () => {
     try {
       const [foldersRes, pagesRes] = await Promise.all([
@@ -108,10 +114,7 @@ export default function WorkspacePage() {
     fetchWorkspaceData();
   }, [fetchWorkspaceData]);
 
-  const [prevActivePageId, setPrevActivePageId] = useState<string | null>(null);
-
-  if (activePageId !== prevActivePageId) {
-    setPrevActivePageId(activePageId);
+  if (activePageDetails && activePageDetails._id !== activePageId) {
     setActivePageDetails(null);
   }
 
@@ -213,6 +216,18 @@ export default function WorkspacePage() {
     }
   };
 
+  const handleMovePage = async (folderId: string | null) => {
+    if (moveDialog.pageId) {
+      await fetch(`/api/pages/${moveDialog.pageId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ folderId }),
+      });
+      showToast(`Moved page successfully`, "success");
+      await fetchWorkspaceData();
+    }
+  };
+
   const handleDuplicatePage = async (id: string) => {
     try {
       const res = await fetch(`/api/pages/${id}/duplicate`, {
@@ -300,6 +315,7 @@ export default function WorkspacePage() {
               });
             }}
             onRenamePage={(p) => setPageDialog({ isOpen: true, page: p })}
+            onMovePage={(p) => setMoveDialog({ isOpen: true, pageId: p._id, pageName: p.title })}
             onDuplicatePage={(id) => handleDuplicatePage(id)}
             onDeletePage={(id) => {
               const p = pages.find((item) => item._id === id);
@@ -463,6 +479,14 @@ export default function WorkspacePage() {
             await handleDeletePage(deleteConfirm.id);
           }
         }}
+      />
+
+      <MovePageDialog
+        isOpen={moveDialog.isOpen}
+        onClose={() => setMoveDialog({ ...moveDialog, isOpen: false })}
+        pageName={moveDialog.pageName}
+        folders={folders}
+        onConfirm={handleMovePage}
       />
     </div>
   );
